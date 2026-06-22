@@ -159,8 +159,8 @@ async function runDraft(){
       body: JSON.stringify({ messages: convo })
     })
     const data = await res.json()
-    if(!res.ok || data.error){
-      addThreadMsg('ai', 'Something broke on the way to the model. Try again in a second.')
+    if (!res.ok || data.error) {
+      addThreadMsg('ai', `Something broke on the way to the model: ${data.detail || data.error || res.status}`)
       return
     }
 

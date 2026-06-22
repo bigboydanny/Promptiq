@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
         Authorization: `Bearer ${key}`
       },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+        model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
         temperature: 0.7,
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages]
       })
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     if (!groqRes.ok) {
       const text = await groqRes.text()
       console.error('groq error', groqRes.status, text)
-      res.status(502).json({ error: 'upstream failure' })
+      res.status(502).json({ error: 'upstream failure', detail: text })
       return
     }
 
