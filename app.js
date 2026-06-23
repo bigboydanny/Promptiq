@@ -4,9 +4,33 @@ const thread = document.getElementById('thread')
 const manuscript = document.getElementById('manuscript')
 const manuscriptText = document.getElementById('manuscriptText')
 const composerHint = document.getElementById('composerHint')
+const composerLabel = document.getElementById('composerLabel')
 const stampSeal = document.getElementById('stampSeal')
 const copyBtn = document.getElementById('copyBtn')
 const saveBtn = document.getElementById('saveBtn')
+const modeToggle = document.getElementById('modeToggle')
+
+let mode = 'general'
+
+const MODE_COPY = {
+  general: {
+    label: 'What are you trying to get an AI to do?',
+    placeholder: "e.g. I need a prompt that gets an AI to write cold emails for my landscaping business that don't sound like cold emails"
+  },
+  persona: {
+    label: 'What should the bot be?',
+    placeholder: 'e.g. a blunt senior code reviewer who never sugarcoats feedback and always asks for tests'
+  }
+}
+
+modeToggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('.mode-btn')
+  if(!btn) return
+  mode = btn.dataset.mode
+  modeToggle.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn))
+  composerLabel.textContent = MODE_COPY[mode].label
+  ideaInput.placeholder = MODE_COPY[mode].placeholder
+})
 
 const ledgerToggle = document.getElementById('ledgerToggle')
 const ledgerPanel = document.getElementById('ledger')
@@ -78,6 +102,10 @@ function loadFromLedger(item){
   manuscriptText.textContent = item.prompt
   manuscript.classList.remove('hidden')
   ideaInput.value = item.idea || ''
+  if(item.mode && item.mode !== mode){
+    const btn = modeToggle.querySelector(`[data-mode="${item.mode}"]`)
+    if(btn) btn.click()
+  }
   ledgerPanel.classList.remove('open')
   ledgerBackdrop.classList.remove('open')
   ledgerToggle.setAttribute('aria-expanded', 'false')
@@ -156,7 +184,7 @@ async function runDraft(){
     const res = await fetch('/api/draft', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: convo })
+      body: JSON.stringify({ messages: convo, mode })
     })
     const data = await res.json()
     if (!res.ok || data.error) {
@@ -231,6 +259,7 @@ renameConfirm.addEventListener('click', () => {
     name,
     prompt: finalPrompt,
     idea: ideaInput.value,
+    mode,
     createdAt: Date.now()
   })
   writeLedger(items)
