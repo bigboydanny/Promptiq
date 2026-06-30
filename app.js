@@ -9,6 +9,34 @@ const stampSeal = document.getElementById('stampSeal')
 const copyBtn = document.getElementById('copyBtn')
 const saveBtn = document.getElementById('saveBtn')
 const modeToggle = document.getElementById('modeToggle')
+const emptyState = document.getElementById('emptyState')
+const starterList = document.getElementById('starterList')
+
+const STARTERS = [
+  { label: 'Refactor a messy function', idea: 'A prompt that gets an AI to refactor a messy JavaScript function for readability without changing its behavior' },
+  { label: 'Strict code reviewer', idea: 'A prompt that makes an AI review my pull requests like a senior engineer who catches everything', mode: 'persona' },
+  { label: 'Debug a stack trace', idea: 'A prompt that gets an AI to diagnose a Python stack trace and explain the root cause before suggesting a fix' },
+  { label: 'Write unit tests', idea: 'A prompt that gets an AI to write thorough unit tests for a function, covering edge cases I might not think of' }
+]
+
+function renderStarters(){
+  starterList.innerHTML = ''
+  STARTERS.forEach(s => {
+    const btn = document.createElement('button')
+    btn.className = 'starter-chip'
+    btn.textContent = s.label
+    btn.addEventListener('click', () => {
+      ideaInput.value = s.idea
+      if(s.mode && s.mode !== mode){
+        const modeBtn = modeToggle.querySelector(`[data-mode="${s.mode}"]`)
+        if(modeBtn) modeBtn.click()
+      }
+      ideaInput.focus()
+    })
+    starterList.appendChild(btn)
+  })
+}
+renderStarters()
 
 let mode = 'general'
 
@@ -99,8 +127,9 @@ function loadFromLedger(item){
   thread.innerHTML = ''
   convo = []
   finalPrompt = item.prompt
-  manuscriptText.textContent = item.prompt
+  manuscriptText.innerHTML = renderMd(item.prompt)
   manuscript.classList.remove('hidden')
+  emptyState.classList.add('hidden')
   ideaInput.value = item.idea || ''
   if(item.mode && item.mode !== mode){
     const btn = modeToggle.querySelector(`[data-mode="${item.mode}"]`)
@@ -109,6 +138,37 @@ function loadFromLedger(item){
   ledgerPanel.classList.remove('open')
   ledgerBackdrop.classList.remove('open')
   ledgerToggle.setAttribute('aria-expanded', 'false')
+}
+
+function renderMd(raw) {
+  let s = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) =>
+    `<pre><code>${c.trimEnd()}</code></pre>`)
+
+  s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>')
+  s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>')
+  s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>')
+  s = s.replace(/^---$/gm, '<hr>')
+  s = s.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+
+  s = s.replace(/((?:^[-*] .+\n?)+)/gm, blk =>
+    '<ul>' + blk.trim().split('\n').map(l => `<li>${l.replace(/^[-*] /, '')}</li>`).join('') + '</ul>')
+
+  s = s.replace(/((?:^\d+\. .+\n?)+)/gm, blk =>
+    '<ol>' + blk.trim().split('\n').map(l => `<li>${l.replace(/^\d+\. /, '')}</li>`).join('') + '</ol>')
+
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  s = s.replace(/_(.+?)_/g, '<em>$1</em>')
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
+
+  s = s.replace(/^(?!<[houbl]|<hr|<blockquote|<pre)(.+)$/gm, '<p>$1</p>')
+
+  return s
 }
 
 function escapeHtml(str){
@@ -170,8 +230,10 @@ function addReplyBox(){
 }
 
 function looksLikeQuestions(text){
-  const numbered = (text.match(/^\s*\d+[\.\)]/gm) || []).length
-  return numbered >= 1 && text.trim().endsWith('?')
+  const trimmed = text.trim()
+  if(!trimmed.endsWith('?')) return false
+  const wordCount = trimmed.split(/\s+/).length
+  return wordCount < 80
 }
 
 async function runDraft(){
@@ -200,7 +262,7 @@ async function runDraft(){
       addReplyBox()
     } else {
       finalPrompt = reply
-      manuscriptText.textContent = finalPrompt
+      manuscriptText.innerHTML = renderMd(finalPrompt)
       manuscript.classList.remove('hidden')
       manuscript.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
@@ -218,9 +280,12 @@ draftBtn.addEventListener('click', () => {
   if(!idea) return
   thread.innerHTML = ''
   manuscript.classList.add('hidden')
+  emptyState.classList.add('hidden')
   finalPrompt = ''
   convo = [{ role: 'user', content: idea }]
   stampSeal.textContent = nextStampId()
+  stampSeal.classList.remove('stamping')
+  requestAnimationFrame(() => stampSeal.classList.add('stamping'))
   runDraft()
 })
 
